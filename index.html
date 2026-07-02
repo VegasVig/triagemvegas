@@ -6,7 +6,7 @@
 <title>Vegas Vigilância — Painel de Candidatos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -24,16 +24,51 @@
   html, body { background: var(--bg); color: var(--silver); font-family:'Inter',sans-serif; min-height:100vh; }
   .wrap { max-width: 1280px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
 
+  /* ---------- LOGIN ---------- */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 20%, #161616 0%, #080808 70%);
+    padding: 1.5rem;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2.6rem 2.4rem 2.2rem;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .login-box::before { content:''; position:absolute; left:0; top:0; right:0; height:2px; background:var(--grad); }
+  .login-logo { max-width: 190px; max-height: 120px; object-fit: contain; margin: 0 auto 1.4rem; display:block; }
+  .login-box .eyebrow { justify-content:center; display:flex; }
+  .login-box h1 { font-size: 1.4rem; margin-bottom: 1.6rem; }
+  .login-box input {
+    width: 100%; background:#0d0d0d; border:1px solid var(--border); color:var(--white);
+    font-size:13.5px; padding:.75rem .9rem; border-radius:4px; margin-bottom:.9rem; font-family:'Inter',sans-serif;
+  }
+  .login-box input:focus { outline:none; border-color:#777; }
+  .login-box .btn { width:100%; padding:.75rem; font-size:13.5px; margin-top:.3rem; }
+  .login-error { color: var(--danger); font-size: 12px; margin-top: .8rem; min-height: 14px; }
+  #dashboard { display: none; }
+
   header { display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1.5rem; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border); position:relative; }
   header::before { content:''; position:absolute; left:0; bottom:-1px; width:120px; height:2px; background:var(--grad); }
+  .brand { display:flex; align-items:center; gap:1rem; }
+  .brand img { height: 46px; width: auto; object-fit: contain; }
   .eyebrow { font-family:'Rajdhani',sans-serif; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--silver-dim); margin-bottom:.3rem; }
   h1 { font-family:'Rajdhani',sans-serif; font-size:2.1rem; font-weight:700; color:var(--white); }
 
   .conn { display:flex; gap:.6rem; align-items:center; }
-  .conn input { background:var(--card); border:1px solid var(--border); color:var(--white); font-size:12.5px; padding:.6rem .8rem; border-radius:4px; width:320px; font-family:'Inter',sans-serif; }
-  .conn input:focus { outline:none; border-color:#666; }
   .btn { font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:1px; text-transform:uppercase; font-size:13px; padding:.6rem 1.2rem; border-radius:4px; border:none; cursor:pointer; background:var(--grad); color:#000; transition:filter .15s; }
   .btn:hover { filter:brightness(1.15); }
+  .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--silver-dim); }
+  .btn.ghost:hover { color:var(--white); border-color:#666; filter:none; }
   .status { font-size:11.5px; color:var(--silver-dim); margin-top:.4rem; }
   .status.err { color:var(--danger); }
   .status.ok { color:var(--ok); }
@@ -45,7 +80,7 @@
   .kpi-label { font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--silver-dim); margin-top:.5rem; }
 
   .grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-bottom:1.2rem; }
-  @media (max-width:900px){ .grid{ grid-template-columns:1fr; } .conn input{ width:200px; } }
+  @media (max-width:900px){ .grid{ grid-template-columns:1fr; } }
 
   .card { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:1.4rem 1.5rem; }
   .card h3 { font-family:'Rajdhani',sans-serif; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--silver-dim); margin-bottom:1rem; font-weight:600; }
@@ -68,51 +103,114 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <p class="eyebrow">Vegas Vigilância &amp; Segurança</p>
-      <h1>Painel de Candidatos</h1>
-    </div>
-    <div>
-      <div class="conn">
-        <input id="apiUrl" type="text" placeholder="Cole aqui a URL do Apps Script (…/exec)" />
-        <button class="btn" onclick="loadData()">Carregar</button>
-      </div>
-      <div class="status" id="status">Cole a URL do App da Web publicado no Apps Script e clique em Carregar.</div>
-    </div>
-  </header>
 
-  <div id="content">
-    <div class="empty">
-      <b>Nenhum dado carregado ainda.</b><br/>
-      Publique o <code>Code.gs</code> como App da Web (implantação do Google Apps Script) vinculado à sua planilha,<br/>
-      cole a URL /exec acima e clique em Carregar para visualizar os candidatos.
+<!-- ================= LOGIN ================= -->
+<div id="loginScreen">
+  <div class="login-box">
+    <img src="assets/logovegas.png" alt="Vegas Vigilância" class="login-logo" />
+    <p class="eyebrow">Vegas Vigilância &amp; Segurança</p>
+    <h1>Painel de Candidatos</h1>
+    <input id="loginUser" type="text" placeholder="Usuário" autocomplete="username" />
+    <input id="loginPass" type="password" placeholder="Senha" autocomplete="current-password" />
+    <button class="btn" onclick="tryLogin()">Entrar</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboard">
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <img src="assets/logovegas.png" alt="Vegas Vigilância" onerror="this.style.display='none'" />
+        <div>
+          <p class="eyebrow">Vegas Vigilância &amp; Segurança</p>
+          <h1>Painel de Candidatos</h1>
+        </div>
+      </div>
+      <div>
+        <div class="conn">
+          <button class="btn" onclick="loadData()">Atualizar</button>
+          <button class="btn ghost" onclick="logout()">Sair</button>
+        </div>
+        <div class="status" id="status">Carregando dados...</div>
+      </div>
+    </header>
+
+    <div id="content">
+      <div class="empty">
+        <b>Carregando candidatos...</b>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+/* ---------- CONFIG ---------- */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxIKlyZRrNjm2O5X5a1T4XSuxhRrDD7EX9LbV5FiDb1evxtoNzhp9IMr0wtiM7zPdA/exec';
+const AUTH_USER = 'vegas';
+const AUTH_PASS = 'Vegas4747@!';
+const SESSION_KEY = 'vegas_painel_auth';
+
+/* ---------- LOGIN ---------- */
+function tryLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+
+  if (user === AUTH_USER && pass === AUTH_PASS) {
+    errEl.textContent = '';
+    sessionStorage.setItem(SESSION_KEY, '1');
+    showDashboard();
+  } else {
+    errEl.textContent = 'Usuário ou senha incorretos.';
+  }
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+document.getElementById('loginUser').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+
+function logout() {
+  sessionStorage.removeItem(SESSION_KEY);
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+function showDashboard() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  loadData();
+}
+
+// Sessão já autenticada nesta aba
+if (sessionStorage.getItem(SESSION_KEY) === '1') {
+  showDashboard();
+}
+
+/* ---------- DADOS ---------- */
 let candidatos = [];
 let charts = {};
 
 async function loadData() {
-  const url = document.getElementById('apiUrl').value.trim();
   const statusEl = document.getElementById('status');
-  if (!url) { statusEl.textContent = 'https://script.google.com/macros/s/AKfycbwcG77XMA9pxpKzuZpgwqtXpoeTMRP2j7WlH4ZfoHViUYDu_QzkqNDgN4u8_Rn1FRgp/exec'; statusEl.className = 'status err'; return; }
-
   statusEl.textContent = 'Carregando...';
   statusEl.className = 'status';
 
   try {
-    const res = await fetch(url);
+    const res = await fetch(API_URL);
     const data = await res.json();
     candidatos = data.candidatos || [];
     statusEl.textContent = `${candidatos.length} candidato(s) carregado(s) com sucesso.`;
     statusEl.className = 'status ok';
     render();
   } catch (err) {
-    statusEl.textContent = 'Erro ao carregar dados. Verifique se a URL está correta e se o App da Web está publicado para "Qualquer pessoa".';
+    statusEl.textContent = 'Erro ao carregar dados. Verifique se o App da Web está publicado para "Qualquer pessoa".';
     statusEl.className = 'status err';
     console.error(err);
   }
