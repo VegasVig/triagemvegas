@@ -265,7 +265,7 @@
 
 <script>
 /* ---------- CONFIG ---------- */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxIKlyZRrNjm2O5X5a1T4XSuxhRrDD7EX9LbV5FiDb1evxtoNzhp9IMr0wtiM7zPdA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyp-sBVMM7tGbyWuAM8uVnSCVqoXf_lgNdzmEtjj4TQ_kUGcBYBhuf3gRtVbHhBirI1/exec';
 const AUTH_USER = 'vegas';
 const AUTH_PASS = 'Vegas4747@!';
 const SESSION_KEY = 'vegas_painel_auth';
@@ -383,6 +383,13 @@ function getAttentionItems(c) {
 
 function attentionCount(c) {
   return getAttentionItems(c).filter(i => i.attention).length;
+}
+
+function formatTimestamp(raw) {
+  if (!raw) return '—';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw);
+  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 
 function initials(name) {
@@ -511,7 +518,7 @@ function openModal(index) {
 
   document.getElementById('modalAvatar').textContent = initials(c.nome);
   document.getElementById('modalName').textContent = c.nome || 'Sem nome';
-  document.getElementById('modalSub').textContent = `${c.vaga || 'Vaga não informada'} · Cadastrado em ${c.timestamp || '—'}`;
+  document.getElementById('modalSub').textContent = `${c.vaga || 'Vaga não informada'} · Cadastrado em ${formatTimestamp(c.timestamp)}`;
   document.getElementById('modalBox').className = 'modal' + (flagCount > 0 ? ' risk' : '');
 
   const attnHtml = items.map(i => `
