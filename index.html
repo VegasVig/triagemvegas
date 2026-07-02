@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Vegas Vigilância Painel de Candidatos</title>
+<title>Vegas Vigilância — Painel de Candidatos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <style>
@@ -265,7 +265,7 @@
 
 <script>
 /* ---------- CONFIG ---------- */
-const API_URL = 'https://script.google.com/macros/s/AKfycbyp-sBVMM7tGbyWuAM8uVnSCVqoXf_lgNdzmEtjj4TQ_kUGcBYBhuf3gRtVbHhBirI1/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxcgWZHh4Da_kJ1iIMI-Wql8bLV20nVocLVW2Mv2qXRZ0m1996hxf8xd8bSQQ9SHZN4/exec';
 const AUTH_USER = 'vegas';
 const AUTH_PASS = 'Vegas4747@!';
 const SESSION_KEY = 'vegas_painel_auth';
@@ -387,9 +387,25 @@ function attentionCount(c) {
 
 function formatTimestamp(raw) {
   if (!raw) return '—';
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(raw)) return raw;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? String(raw) : d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function parseVagas(raw) {
+  if (!raw) return ['—'];
+  return String(raw).split(',').map(v => v.trim()).filter(Boolean);
+}
+
+function formatDateOnly(raw) {
+  if (!raw) return '—';
   const d = new Date(raw);
   if (isNaN(d.getTime())) return String(raw);
-  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  // usa getters UTC pra não deslocar o dia por causa do fuso do navegador
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = d.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 function initials(name) {
@@ -412,8 +428,7 @@ function render() {
   const semExperiencia = candidatos.filter(c => (c.experiencia || '') === 'Sem experiência').length;
   const vagaMap = {};
   candidatos.forEach(c => {
-    const v = (c.vaga || '—').trim() || '—';
-    vagaMap[v] = (vagaMap[v] || 0) + 1;
+    parseVagas(c.vaga).forEach(v => { vagaMap[v] = (vagaMap[v] || 0) + 1; });
   });
   const vagaTop = Object.entries(vagaMap).sort((a, b) => b[1] - a[1])[0];
 
@@ -461,7 +476,7 @@ function renderCards() {
 
   let list = candidatos.filter(c => {
     const matchesQuery = !currentQuery || (c.nome || '').toLowerCase().includes(currentQuery.toLowerCase());
-    const matchesVaga = !currentVagaFilter || c.vaga === currentVagaFilter;
+    const matchesVaga = !currentVagaFilter || parseVagas(c.vaga).includes(currentVagaFilter);
     const count = attentionCount(c);
     const matchesRisk = !currentRiskFilter || (currentRiskFilter === 'risk' ? count > 0 : count === 0);
     return matchesQuery && matchesVaga && matchesRisk;
@@ -531,7 +546,9 @@ function openModal(index) {
     </div>
   `).join('');
 
-  const motivoTxt = c.motivo === 'Outra' ? `Outra — ${c.motivoOutro || ''}` : (c.motivo || '—');
+  const motivoEscolhaTxt = c.motivoEscolha === 'Outro (descreva).' ? `Outro — ${c.motivoEscolhaOutro || ''}` : (c.motivoEscolha || '—');
+  const carreira5anosTxt = c.carreira5anos === 'Outro.' ? `Outro — ${c.carreira5anosOutro || ''}` : (c.carreira5anos || '—');
+  const motivacaoTrabalhoTxt = c.motivacaoTrabalho === 'Outro.' ? `Outro — ${c.motivacaoTrabalhoOutro || ''}` : (c.motivacaoTrabalho || '—');
 
   const body = `
     <div class="section-label">${flagCount > 0 ? flagCount + ' ponto(s) de atenção' : 'Pontos de atenção'}</div>
@@ -540,7 +557,7 @@ function openModal(index) {
     <div class="section-label">Dados pessoais</div>
     <div class="info-grid">
       <div class="info-item"><div class="k">CPF</div><div class="v">${escapeHtml(c.cpf || '—')}</div></div>
-      <div class="info-item"><div class="k">Nascimento</div><div class="v">${escapeHtml(c.nascimento || '—')}</div></div>
+      <div class="info-item"><div class="k">Nascimento</div><div class="v">${escapeHtml(formatDateOnly(c.nascimento))}</div></div>
       <div class="info-item"><div class="k">Telefone</div><div class="v">${escapeHtml(c.telefone || '—')}</div></div>
       <div class="info-item"><div class="k">E-mail</div><div class="v">${escapeHtml(c.email || '—')}</div></div>
       <div class="info-item"><div class="k">Cidade / Bairro</div><div class="v">${escapeHtml(c.cidade || '—')} / ${escapeHtml(c.bairro || '—')}</div></div>
@@ -561,7 +578,14 @@ function openModal(index) {
       <div class="info-item"><div class="k">Certificado de vigilante</div><div class="v">${escapeHtml(c.certVigilante || '—')}</div></div>
       <div class="info-item"><div class="k">Registro PF</div><div class="v">${escapeHtml(c.regPF || '—')}</div></div>
       <div class="info-item"><div class="k">Último cargo</div><div class="v">${escapeHtml(c.ultimoCargo || '—')}</div></div>
-      <div class="info-item"><div class="k">Motivo</div><div class="v">${escapeHtml(motivoTxt)}</div></div>
+    </div>
+
+    <div class="section-label">Perfil e carreira</div>
+    <div class="info-grid">
+      <div class="info-item full"><div class="k">Por que escolheu ser vigilante</div><div class="v">${escapeHtml(motivoEscolhaTxt)}</div></div>
+      <div class="info-item"><div class="k">Concurso p/ segurança pública</div><div class="v">${escapeHtml(c.concursoSegPublica || '—')}</div></div>
+      <div class="info-item"><div class="k">Carreira em 5 anos</div><div class="v">${escapeHtml(carreira5anosTxt)}</div></div>
+      <div class="info-item full"><div class="k">O que mais motiva no trabalho</div><div class="v">${escapeHtml(motivacaoTrabalhoTxt)}</div></div>
     </div>
 
     ${c.obs ? `
