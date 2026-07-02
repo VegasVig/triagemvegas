@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vegas Vigilância — Painel de Candidatos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #080808;
+    --surface:   #111111;
+    --card:      #161616;
+    --border:    #2a2a2a;
+    --silver:    #c8c8c8;
+    --silver-dim:#888888;
+    --white:     #f0f0f0;
+    --ok:        #55b87a;
+    --danger:    #e05555;
+    --grad: linear-gradient(135deg, #3a3a3a 0%, #909090 50%, #3a3a3a 100%);
+  }
+  html, body { background: var(--bg); color: var(--silver); font-family:'Inter',sans-serif; min-height:100vh; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+
+  header { display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:1.5rem; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border); position:relative; }
+  header::before { content:''; position:absolute; left:0; bottom:-1px; width:120px; height:2px; background:var(--grad); }
+  .eyebrow { font-family:'Rajdhani',sans-serif; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--silver-dim); margin-bottom:.3rem; }
+  h1 { font-family:'Rajdhani',sans-serif; font-size:2.1rem; font-weight:700; color:var(--white); }
+
+  .conn { display:flex; gap:.6rem; align-items:center; }
+  .conn input { background:var(--card); border:1px solid var(--border); color:var(--white); font-size:12.5px; padding:.6rem .8rem; border-radius:4px; width:320px; font-family:'Inter',sans-serif; }
+  .conn input:focus { outline:none; border-color:#666; }
+  .btn { font-family:'Rajdhani',sans-serif; font-weight:700; letter-spacing:1px; text-transform:uppercase; font-size:13px; padding:.6rem 1.2rem; border-radius:4px; border:none; cursor:pointer; background:var(--grad); color:#000; transition:filter .15s; }
+  .btn:hover { filter:brightness(1.15); }
+  .status { font-size:11.5px; color:var(--silver-dim); margin-top:.4rem; }
+  .status.err { color:var(--danger); }
+  .status.ok { color:var(--ok); }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; margin-bottom:2rem; }
+  .kpi { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:1.2rem 1.3rem; position:relative; overflow:hidden; }
+  .kpi::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--grad); }
+  .kpi-num { font-family:'Rajdhani',sans-serif; font-size:2.1rem; font-weight:700; color:var(--white); line-height:1; }
+  .kpi-label { font-size:11px; letter-spacing:.5px; text-transform:uppercase; color:var(--silver-dim); margin-top:.5rem; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-bottom:1.2rem; }
+  @media (max-width:900px){ .grid{ grid-template-columns:1fr; } .conn input{ width:200px; } }
+
+  .card { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:1.4rem 1.5rem; }
+  .card h3 { font-family:'Rajdhani',sans-serif; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; color:var(--silver-dim); margin-bottom:1rem; font-weight:600; }
+  .chart-holder { position:relative; height:260px; }
+
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead th { text-align:left; font-family:'Rajdhani',sans-serif; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--silver-dim); padding:.6rem .7rem; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--card); }
+  tbody td { padding:.6rem .7rem; border-bottom:1px solid #1e1e1e; color:var(--silver); white-space:nowrap; }
+  tbody tr:hover { background:#1c1c1c; }
+  .tag { padding:.15rem .55rem; border-radius:20px; font-size:11px; font-weight:600; }
+  .tag.sim { background:#1a0f0f; color:#e08888; border:1px solid #5a2020; }
+  .tag.nao { background:#081208; color:#7dcf9a; border:1px solid #2a5a2a; }
+  .table-wrap { max-height:420px; overflow:auto; border:1px solid var(--border); border-radius:6px; }
+  .table-wrap table thead th { background:#161616; }
+
+  .empty { text-align:center; padding:3rem 1rem; color:var(--silver-dim); font-size:13.5px; line-height:1.8; }
+  .empty b { color:var(--white); }
+  .filter-row { display:flex; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .filter-row select { background:var(--card); border:1px solid var(--border); color:var(--silver); font-size:12px; padding:.45rem .7rem; border-radius:4px; font-family:'Inter',sans-serif; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Vegas Vigilância &amp; Segurança</p>
+      <h1>Painel de Candidatos</h1>
+    </div>
+    <div>
+      <div class="conn">
+        <input id="apiUrl" type="text" placeholder="Cole aqui a URL do Apps Script (…/exec)" />
+        <button class="btn" onclick="loadData()">Carregar</button>
+      </div>
+      <div class="status" id="status">Cole a URL do App da Web publicado no Apps Script e clique em Carregar.</div>
+    </div>
+  </header>
+
+  <div id="content">
+    <div class="empty">
+      <b>Nenhum dado carregado ainda.</b><br/>
+      Publique o <code>Code.gs</code> como App da Web (implantação do Google Apps Script) vinculado à sua planilha,<br/>
+      cole a URL /exec acima e clique em Carregar para visualizar os candidatos.
+    </div>
+  </div>
+</div>
+
+<script>
+let candidatos = [];
+let charts = {};
+
+async function loadData() {
+  const url = document.getElementById('apiUrl').value.trim();
+  const statusEl = document.getElementById('status');
+  if (!url) { statusEl.textContent = 'https://script.google.com/macros/s/AKfycbwcG77XMA9pxpKzuZpgwqtXpoeTMRP2j7WlH4ZfoHViUYDu_QzkqNDgN4u8_Rn1FRgp/exec'; statusEl.className = 'status err'; return; }
+
+  statusEl.textContent = 'Carregando...';
+  statusEl.className = 'status';
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    candidatos = data.candidatos || [];
+    statusEl.textContent = `${candidatos.length} candidato(s) carregado(s) com sucesso.`;
+    statusEl.className = 'status ok';
+    render();
+  } catch (err) {
+    statusEl.textContent = 'Erro ao carregar dados. Verifique se a URL está correta e se o App da Web está publicado para "Qualquer pessoa".';
+    statusEl.className = 'status err';
+    console.error(err);
+  }
+}
+
+function countBy(arr, key) {
+  const map = {};
+  arr.forEach(c => {
+    const v = (c[key] || '—').toString().trim() || '—';
+    map[v] = (map[v] || 0) + 1;
+  });
+  return map;
+}
+
+function countByMulti(arr, key) {
+  const map = {};
+  arr.forEach(c => {
+    const v = (c[key] || '').toString();
+    if (!v) return;
+    v.split(',').map(s => s.trim()).filter(Boolean).forEach(item => {
+      map[item] = (map[item] || 0) + 1;
+    });
+  });
+  return map;
+}
+
+const PALETTE = ['#c8c8c8','#8a8a8a','#e0e0e0','#6a6a6a','#a8a8a8','#555555','#f0f0f0','#3a3a3a'];
+
+function makeChart(ctx, type, labels, values, opts) {
+  return new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: PALETTE,
+        borderColor: '#080808',
+        borderWidth: 2,
+      }]
+    },
+    options: Object.assign({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: type === 'doughnut',
+          position: 'right',
+          labels: { color: '#888', font: { size: 11, family: 'Inter' }, boxWidth: 10, padding: 10 }
+        }
+      },
+      scales: type === 'bar' ? {
+        x: { ticks: { color: '#888', font: { size: 10.5 } }, grid: { color: '#1e1e1e' } },
+        y: { ticks: { color: '#888', font: { size: 10.5 }, precision: 0 }, grid: { color: '#1e1e1e' }, beginAtZero: true }
+      } : {}
+    }, opts || {})
+  });
+}
+
+function render() {
+  const content = document.getElementById('content');
+  if (candidatos.length === 0) {
+    content.innerHTML = `<div class="empty"><b>Nenhum candidato encontrado na planilha.</b><br/>Assim que houver cadastros pelo formulário, eles aparecerão aqui.</div>`;
+    return;
+  }
+
+  const total = candidatos.length;
+  const comAntecedentes = candidatos.filter(c => (c.antecedentes || '') === 'Sim').length;
+  const semExperiencia = candidatos.filter(c => (c.experiencia || '') === 'Sem experiência').length;
+  const vagaMap = countBy(candidatos, 'vaga');
+  const vagaTop = Object.entries(vagaMap).sort((a,b) => b[1]-a[1])[0];
+
+  content.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-num">${total}</div><div class="kpi-label">Candidatos cadastrados</div></div>
+      <div class="kpi"><div class="kpi-num">${comAntecedentes}</div><div class="kpi-label">Com antecedentes criminais</div></div>
+      <div class="kpi"><div class="kpi-num">${semExperiencia}</div><div class="kpi-label">Sem experiência prévia</div></div>
+      <div class="kpi"><div class="kpi-num" style="font-size:1.3rem">${vagaTop ? vagaTop[0] : '—'}</div><div class="kpi-label">Vaga mais procurada</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Vaga pretendida</h3>
+        <div class="chart-holder"><canvas id="chartVaga"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Motivo para virar vigilante</h3>
+        <div class="chart-holder"><canvas id="chartMotivo"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Turnos de disponibilidade</h3>
+        <div class="chart-holder"><canvas id="chartTurno"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Experiência na área</h3>
+        <div class="chart-holder"><canvas id="chartExperiencia"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Lista de candidatos</h3>
+      <div class="filter-row">
+        <select id="filterVaga" onchange="applyFilter()"><option value="">Todas as vagas</option></select>
+        <select id="filterAntecedentes" onchange="applyFilter()">
+          <option value="">Antecedentes: todos</option>
+          <option value="Sim">Antecedentes: Sim</option>
+          <option value="Não">Antecedentes: Não</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th><th>Telefone</th><th>Cidade/Bairro</th><th>Vaga</th>
+              <th>Motivo</th><th>Experiência</th><th>Antecedentes</th><th>Data</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  // Charts
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  const vagaEntries = Object.entries(vagaMap);
+  charts.vaga = makeChart(document.getElementById('chartVaga'), 'bar',
+    vagaEntries.map(e=>e[0]), vagaEntries.map(e=>e[1]));
+
+  const motivoMap = countBy(candidatos, 'motivo');
+  const motivoEntries = Object.entries(motivoMap);
+  charts.motivo = makeChart(document.getElementById('chartMotivo'), 'doughnut',
+    motivoEntries.map(e=>e[0]), motivoEntries.map(e=>e[1]));
+
+  const turnoMap = countByMulti(candidatos, 'turnos');
+  const turnoEntries = Object.entries(turnoMap).sort((a,b)=>b[1]-a[1]);
+  charts.turno = makeChart(document.getElementById('chartTurno'), 'bar',
+    turnoEntries.map(e=>e[0]), turnoEntries.map(e=>e[1]));
+
+  const expMap = countBy(candidatos, 'experiencia');
+  const expOrder = ['Sem experiência','Menos de 1 ano','1 a 3 anos','Mais de 3 anos'];
+  const expEntries = expOrder.filter(k=>expMap[k]).map(k=>[k,expMap[k]]);
+  charts.experiencia = makeChart(document.getElementById('chartExperiencia'), 'bar',
+    expEntries.map(e=>e[0]), expEntries.map(e=>e[1]));
+
+  // Filtro de vaga
+  const filterVaga = document.getElementById('filterVaga');
+  Object.keys(vagaMap).forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = v;
+    filterVaga.appendChild(opt);
+  });
+
+  applyFilter();
+}
+
+function applyFilter() {
+  const vaga = document.getElementById('filterVaga')?.value || '';
+  const ant = document.getElementById('filterAntecedentes')?.value || '';
+  const filtered = candidatos.filter(c =>
+    (!vaga || c.vaga === vaga) && (!ant || c.antecedentes === ant)
+  );
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = filtered.map(c => `
+    <tr>
+      <td>${escapeHtml(c.nome || '—')}</td>
+      <td>${escapeHtml(c.telefone || '—')}</td>
+      <td>${escapeHtml(c.cidade || '—')} / ${escapeHtml(c.bairro || '—')}</td>
+      <td>${escapeHtml(c.vaga || '—')}</td>
+      <td>${escapeHtml(c.motivo === 'Outra' ? ('Outra — ' + (c.motivoOutro||'')) : (c.motivo || '—'))}</td>
+      <td>${escapeHtml(c.experiencia || '—')}</td>
+      <td><span class="tag ${c.antecedentes === 'Sim' ? 'sim' : 'nao'}">${escapeHtml(c.antecedentes || '—')}</span></td>
+      <td>${escapeHtml(c.timestamp || '—')}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="8" style="text-align:center; color:#666; padding:1.5rem;">Nenhum candidato corresponde ao filtro.</td></tr>`;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+</script>
+</body>
+</html>
