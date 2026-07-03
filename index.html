@@ -108,10 +108,13 @@
 
   .ccard {
     background:var(--card); border:1px solid var(--border); border-radius:8px;
-    padding:1.2rem 1.3rem; cursor:pointer; transition:border-color .15s, transform .15s, background .15s;
-    position:relative; display:flex; flex-direction:column; gap:.8rem;
+    padding:0; cursor:pointer; transition:border-color .15s, transform .15s, background .15s;
+    position:relative; overflow:hidden;
   }
-  .ccard:hover { border-color:#666; background:var(--card-hi); transform:translateY(-2px); }
+  .ccard .ccard-photo-wrap { border-radius:0; }
+  .ccard .avatar.avatar-lg { border-radius:0; }
+  .ccard .avatar.avatar-lg.has-photo img { border-radius:0; }
+  .ccard:hover { border-color:#666; transform:translateY(-2px); }
   .ccard.risk { border-color: var(--danger-border); }
   .ccard.risk:hover { border-color: var(--danger-strong); }
 
@@ -130,8 +133,36 @@
   .avatar img, .avatar.has-photo { object-fit: cover; }
   .avatar.has-photo { background: none; padding: 0; }
   .avatar.has-photo img { width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; }
+
+  /* -------- large photo avatar (card view) -------- */
+  .ccard-photo-wrap { position:relative; cursor:pointer; border-radius:8px; overflow:hidden; }
+  .avatar.avatar-lg {
+    width:100%; height:auto; aspect-ratio:3/4; border-radius:8px; font-size:2.6rem;
+  }
+  .avatar.avatar-lg.ring-risk { box-shadow: 0 0 0 2px var(--danger-strong); }
+  .avatar.avatar-lg.ring-clear { box-shadow: 0 0 0 2px var(--ok); }
+  .avatar.avatar-lg.has-photo img { border-radius:8px; object-fit:cover; }
+  .ccard-photo-wrap .risk-pill { position:absolute; top:.6rem; right:.6rem; margin-left:0; backdrop-filter: blur(4px); z-index:2; }
+
+  .ccard-photo-overlay {
+    position:absolute; left:0; right:0; bottom:0; z-index:1;
+    padding:1.6rem .9rem .8rem;
+    background:linear-gradient(to top, rgba(0,0,0,.88) 0%, rgba(0,0,0,.6) 60%, transparent 100%);
+  }
+  .ccard-photo-overlay .ccard-name { color:#fff; }
+  .ccard-photo-overlay .ccard-vaga { color:rgba(255,255,255,.8); }
+
+  .ccard-info { text-align:center; }
   .ccard-name { color:var(--white); font-size:14.5px; font-weight:600; line-height:1.3; }
   .ccard-vaga { font-size:11.5px; color:var(--silver-dim); margin-top:.15rem; }
+  .ccard-phone {
+    display:inline-flex; align-items:center; gap:.4rem;
+    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; color:var(--ok);
+    text-decoration:none; border:1px solid var(--ok-border); background:var(--ok-bg);
+    padding:.4rem .8rem; border-radius:20px; transition:filter .15s, transform .15s;
+  }
+  .ccard-phone:hover { filter:brightness(1.2); transform:translateY(-1px); }
+  .ccard-phone svg { width:13px; height:13px; flex-shrink:0; }
 
   .risk-pill {
     margin-left:auto; flex-shrink:0; font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:700;
@@ -443,6 +474,19 @@ function initials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function whatsappLink(telefone) {
+  if (!telefone) return null;
+  let digits = String(telefone).replace(/\D/g, '');
+  if (!digits) return null;
+  // remove zero à esquerda do DDD, se houver
+  digits = digits.replace(/^0+/, '');
+  // se não tiver o código do país (55), adiciona
+  if (!(digits.length >= 12 && digits.startsWith('55'))) {
+    digits = '55' + digits;
+  }
+  return `https://wa.me/${digits}`;
+}
+
 /* ---------- RENDER ---------- */
 function render() {
   const content = document.getElementById('content');
@@ -523,29 +567,17 @@ function renderCards() {
 
   grid.innerHTML = list.map(({ c, n }, idx) => {
     const realIndex = candidatos.indexOf(c);
-    const items = getAttentionItems(c);
-    const flags = items.filter(i => i.attention);
-    const chips = flags.slice(0, 3).map(f => `<span class="chip">${escapeHtml(f.label)}</span>`).join('');
-    const extra = flags.length > 3 ? `<span class="chip">+${flags.length - 3}</span>` : '';
-    const chipRow = flags.length > 0
-      ? `<div class="chip-row">${chips}${extra}</div>`
-      : `<div class="chip-row"><span class="chip ok">Nenhum ponto de atenção</span></div>`;
 
     return `
       <div class="ccard ${n > 0 ? 'risk' : ''}" onclick="openModal(${realIndex})">
-        <div class="ccard-top">
-          ${avatarHtml(c)}
-          <div>
+        <div class="ccard-photo-wrap">
+          ${avatarHtml(c, 'avatar-lg')}
+          <div class="risk-pill ${n > 0 ? 'high' : 'clear'}">${n > 0 ? n + ' ponto' + (n > 1 ? 's' : '') : 'Sem alertas'}</div>
+          <div class="ccard-photo-overlay">
             <div class="ccard-name">${escapeHtml(c.nome || 'Sem nome')}</div>
             <div class="ccard-vaga">${escapeHtml(c.vaga || 'Vaga não informada')}</div>
           </div>
-          <div class="risk-pill ${n > 0 ? 'high' : 'clear'}">${n > 0 ? n + ' ponto' + (n > 1 ? 's' : '') : 'Sem alertas'}</div>
         </div>
-        <div class="ccard-meta">
-          <span><b>${escapeHtml(c.cidade || '—')}</b> / ${escapeHtml(c.bairro || '—')} · ${escapeHtml(c.telefone || '—')}</span>
-          <span>${escapeHtml(c.experiencia || '—')} de experiência</span>
-        </div>
-        ${chipRow}
       </div>
     `;
   }).join('');
@@ -587,7 +619,7 @@ function openModal(index) {
     <div class="info-grid">
       <div class="info-item"><div class="k">CPF</div><div class="v">${escapeHtml(c.cpf || '—')}</div></div>
       <div class="info-item"><div class="k">Nascimento</div><div class="v">${escapeHtml(formatDateOnly(c.nascimento))}</div></div>
-      <div class="info-item"><div class="k">Telefone</div><div class="v">${escapeHtml(c.telefone || '—')}</div></div>
+      <div class="info-item"><div class="k">Telefone</div><div class="v">${c.telefone ? `<a href="${whatsappLink(c.telefone)}" target="_blank" rel="noopener" style="color:var(--ok);text-decoration:none;">${escapeHtml(c.telefone)} ↗</a>` : '—'}</div></div>
       <div class="info-item"><div class="k">E-mail</div><div class="v">${escapeHtml(c.email || '—')}</div></div>
       <div class="info-item"><div class="k">Cidade / Bairro</div><div class="v">${escapeHtml(c.cidade || '—')} / ${escapeHtml(c.bairro || '—')}</div></div>
       <div class="info-item"><div class="k">CNH</div><div class="v">${escapeHtml(c.cnh || '—')}</div></div>
