@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Vegas Vigilância — Painel de Candidatos</title>
+<title>Vegas Vigilância Painel de Candidatos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -122,6 +123,9 @@
     background:var(--grad);
   }
   .ccard.risk .avatar { background: var(--grad-danger); color:#fff; }
+  .avatar img, .avatar.has-photo { object-fit: cover; }
+  .avatar.has-photo { background: none; padding: 0; }
+  .avatar.has-photo img { width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; }
   .ccard-name { color:var(--white); font-size:14.5px; font-weight:600; line-height:1.3; }
   .ccard-vaga { font-size:11.5px; color:var(--silver-dim); margin-top:.15rem; }
 
@@ -166,8 +170,14 @@
   .modal-head .avatar { width:54px; height:54px; font-size:19px; }
   .modal-head h2 { font-family:'Rajdhani',sans-serif; font-size:1.5rem; color:var(--white); font-weight:700; line-height:1.2; }
   .modal-head .sub { font-size:12.5px; color:var(--silver-dim); margin-top:.3rem; }
-  .modal-close {
+  .btn-pdf {
     margin-left:auto; background:transparent; border:1px solid var(--border); color:var(--silver-dim);
+    height:32px; padding:0 .8rem; border-radius:16px; cursor:pointer; font-size:12.5px; font-weight:600;
+    display:flex; align-items:center; gap:.35rem; flex-shrink:0; white-space:nowrap;
+  }
+  .btn-pdf:hover { color:var(--white); border-color:#666; }
+  .modal-close {
+    background:transparent; border:1px solid var(--border); color:var(--silver-dim);
     width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:16px; line-height:1; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
   }
@@ -252,11 +262,12 @@
 <div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target===this) closeModal()">
   <div class="modal" id="modalBox">
     <div class="modal-head">
-      <div class="avatar" id="modalAvatar">—</div>
+      <div id="modalAvatarWrap"><div class="avatar" id="modalAvatar">—</div></div>
       <div>
         <h2 id="modalName">—</h2>
         <div class="sub" id="modalSub">—</div>
       </div>
+      <button class="btn-pdf" id="btnPdf" onclick="generatePDF(currentModalIndex)" title="Baixar ficha em PDF">📄 PDF</button>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
@@ -265,9 +276,13 @@
 
 <script>
 /* ---------- CONFIG ---------- */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxcgWZHh4Da_kJ1iIMI-Wql8bLV20nVocLVW2Mv2qXRZ0m1996hxf8xd8bSQQ9SHZN4/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzYasnQvmT-NleylR1fbbZHHIhjJIXbTyel9ueH-AIqKqQ1dfBtnvg1K5WlKB-jMxQI/exec';
 const AUTH_USER = 'vegas';
 const AUTH_PASS = 'Vegas4747@!';
+
+// Cole aqui o logo em base64 (data:image/png;base64,...) pra aparecer no cabeçalho do PDF. Deixe vazio pra usar só o nome da empresa em texto.
+const LOGO_BASE64 = '';
+const LOGO_FORMAT = 'PNG';
 const SESSION_KEY = 'vegas_painel_auth';
 
 /* ---------- LOGIN ---------- */
@@ -317,6 +332,7 @@ let currentSort = 'risk';
 let currentQuery = '';
 let currentVagaFilter = '';
 let currentRiskFilter = '';
+let currentModalIndex = -1;
 
 async function loadData() {
   const statusEl = document.getElementById('status');
@@ -406,6 +422,12 @@ function formatDateOnly(raw) {
   const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   const yyyy = d.getUTCFullYear();
   return `${dd}/${mm}/${yyyy}`;
+}
+
+function avatarHtml(c, sizeClass) {
+  const cls = sizeClass ? `avatar ${sizeClass}` : 'avatar';
+  if (c.foto) return `<div class="${cls} has-photo"><img src="${c.foto}" alt="" /></div>`;
+  return `<div class="${cls}">${escapeHtml(initials(c.nome))}</div>`;
 }
 
 function initials(name) {
@@ -506,7 +528,7 @@ function renderCards() {
     return `
       <div class="ccard ${n > 0 ? 'risk' : ''}" onclick="openModal(${realIndex})">
         <div class="ccard-top">
-          <div class="avatar">${escapeHtml(initials(c.nome))}</div>
+          ${avatarHtml(c)}
           <div>
             <div class="ccard-name">${escapeHtml(c.nome || 'Sem nome')}</div>
             <div class="ccard-vaga">${escapeHtml(c.vaga || 'Vaga não informada')}</div>
@@ -527,11 +549,12 @@ function renderCards() {
 function openModal(index) {
   const c = candidatos[index];
   if (!c) return;
+  currentModalIndex = index;
 
   const items = getAttentionItems(c);
   const flagCount = items.filter(i => i.attention).length;
 
-  document.getElementById('modalAvatar').textContent = initials(c.nome);
+  document.getElementById('modalAvatarWrap').innerHTML = avatarHtml(c);
   document.getElementById('modalName').textContent = c.nome || 'Sem nome';
   document.getElementById('modalSub').textContent = `${c.vaga || 'Vaga não informada'} · Cadastrado em ${formatTimestamp(c.timestamp)}`;
   document.getElementById('modalBox').className = 'modal' + (flagCount > 0 ? ' risk' : '');
@@ -597,6 +620,167 @@ function openModal(index) {
   document.getElementById('modalBody').innerHTML = body;
   document.getElementById('modalBackdrop').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function generatePDF(index) {
+  const c = candidatos[index];
+  if (!c) return;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = 210, pageH = 297, margin = 15, contentW = pageW - margin * 2;
+  let y;
+
+  doc.setFillColor(18, 18, 18);
+  doc.rect(0, 0, pageW, 30, 'F');
+  const textX = LOGO_BASE64 ? margin + 25 : margin;
+  if (LOGO_BASE64) {
+    try { doc.addImage(LOGO_BASE64, LOGO_FORMAT, margin, 5, 20, 20); } catch (e) {}
+  }
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  doc.text('VEGAS VIGILÂNCIA & SEGURANÇA', textX, 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text('FICHA DE CANDIDATO — PROCESSO SELETIVO', textX, 21);
+  if (c.foto) {
+    try { doc.addImage(c.foto, 'JPEG', pageW - margin - 22, 4, 22, 22); } catch (e) {}
+  }
+
+  y = 40;
+  doc.setTextColor(20, 20, 20);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+  doc.text(c.nome || 'Sem nome', margin, y);
+  y += 6;
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(c.vaga || 'Vaga não informada', margin, y);
+
+  const items = getAttentionItems(c);
+  const flagCount = items.filter(i => i.attention).length;
+  const pillText = flagCount > 0 ? `${flagCount} PONTO(S) DE ATENÇÃO` : 'SEM ALERTAS';
+  const pillColor = flagCount > 0 ? [200, 50, 50] : [40, 150, 90];
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+  const pillW = doc.getTextWidth(pillText) + 8;
+  doc.setFillColor(pillColor[0], pillColor[1], pillColor[2]);
+  doc.roundedRect(pageW - margin - pillW, y - 5, pillW, 7, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.text(pillText, pageW - margin - pillW + 4, y - 0.5);
+
+  y += 8;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(margin, y, pageW - margin, y);
+  y += 8;
+
+  function checkPageBreak(needed) {
+    if (y + needed > pageH - 20) { doc.addPage(); y = 20; }
+  }
+
+  function sectionTitle(title) {
+    checkPageBreak(12);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+    doc.setTextColor(20, 20, 20);
+    doc.text(title.toUpperCase(), margin, y);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y + 2, pageW - margin, y + 2);
+    y += 8;
+  }
+
+  function fieldRow(pairs) {
+    const colW = contentW / pairs.length;
+    checkPageBreak(14);
+    const rowStartY = y;
+    let maxLines = 1;
+    const rendered = pairs.map(([label, value], i) => {
+      const x = margin + i * colW;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.setTextColor(130, 130, 130);
+      doc.text(label.toUpperCase(), x, rowStartY);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      doc.setTextColor(30, 30, 30);
+      const lines = doc.splitTextToSize(String(value || '—'), colW - 5);
+      maxLines = Math.max(maxLines, lines.length);
+      return { x, lines };
+    });
+    rendered.forEach(({ x, lines }) => doc.text(lines, x, rowStartY + 5));
+    y = rowStartY + 5 + maxLines * 4.5 + 4;
+  }
+
+  function fullField(label, value) {
+    checkPageBreak(16);
+    let ty = y;
+    if (label) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+      doc.setTextColor(130, 130, 130);
+      doc.text(label.toUpperCase(), margin, ty);
+      ty += 5;
+    }
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    const lines = doc.splitTextToSize(String(value || '—'), contentW);
+    doc.text(lines, margin, ty);
+    y = ty + lines.length * 4.5 + 4;
+  }
+
+  sectionTitle('Dados pessoais');
+  fieldRow([['CPF', c.cpf], ['Nascimento', formatDateOnly(c.nascimento)]]);
+  fieldRow([['Telefone', c.telefone], ['E-mail', c.email]]);
+  fieldRow([['Cidade / Bairro', `${c.cidade || '—'} / ${c.bairro || '—'}`], ['CNH', c.cnh]]);
+
+  sectionTitle('Disponibilidade');
+  fullField('Turnos disponíveis', c.turnos);
+  fieldRow([['Fins de semana', c.fds], ['Transporte', c.transporte]]);
+
+  sectionTitle('Vaga pretendida');
+  fieldRow([['Vaga', c.vaga], ['Experiência', c.experiencia]]);
+  fieldRow([['Certificado de vigilante', c.certVigilante], ['Registro PF', c.regPF]]);
+  fullField('Último cargo', c.ultimoCargo);
+
+  sectionTitle('Perfil e carreira');
+  const motivoEscolhaTxt = c.motivoEscolha === 'Outro (descreva).' ? `Outro — ${c.motivoEscolhaOutro || ''}` : (c.motivoEscolha || '—');
+  const carreira5anosTxt = c.carreira5anos === 'Outro.' ? `Outro — ${c.carreira5anosOutro || ''}` : (c.carreira5anos || '—');
+  const motivacaoTrabalhoTxt = c.motivacaoTrabalho === 'Outro.' ? `Outro — ${c.motivacaoTrabalhoOutro || ''}` : (c.motivacaoTrabalho || '—');
+  fullField('Por que escolheu ser vigilante', motivoEscolhaTxt);
+  fieldRow([['Concurso p/ seg. pública', c.concursoSegPublica], ['Carreira em 5 anos', carreira5anosTxt]]);
+  fullField('O que mais motiva no trabalho', motivacaoTrabalhoTxt);
+
+  sectionTitle('Pontos de atenção — conformidade');
+  items.forEach(item => {
+    checkPageBreak(8);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.setTextColor(30, 30, 30);
+    doc.text(`${item.label}:`, margin, y);
+    const labelW = doc.getTextWidth(`${item.label}: `);
+    doc.setFont('helvetica', 'normal');
+    doc.text(String(item.value || '—'), margin + labelW, y);
+    const statusText = item.attention ? 'REQUER ATENÇÃO' : 'OK';
+    const statusColor = item.attention ? [200, 50, 50] : [40, 150, 90];
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+    doc.text(statusText, pageW - margin - doc.getTextWidth(statusText), y);
+    y += 6;
+  });
+
+  if (c.obs) {
+    y += 2;
+    sectionTitle('Observações do candidato');
+    fullField('', c.obs);
+  }
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(220, 220, 220);
+    doc.line(margin, pageH - 15, pageW - margin, pageH - 15);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+    doc.setTextColor(140, 140, 140);
+    doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Documento confidencial — uso interno`, margin, pageH - 10);
+    const pageLabel = `Página ${p} de ${pageCount}`;
+    doc.text(pageLabel, pageW - margin - doc.getTextWidth(pageLabel), pageH - 10);
+  }
+
+  const safeName = (c.nome || 'candidato').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_');
+  doc.save(`Ficha_${safeName}.pdf`);
 }
 
 function closeModal() {
