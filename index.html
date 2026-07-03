@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Vegas Vigilância Painel de Candidatos</title>
+<title>Vegas Vigilância — Painel de Candidatos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -122,7 +122,11 @@
     font-family:'Rajdhani',sans-serif; font-weight:700; font-size:15px; color:#000;
     background:var(--grad);
   }
-  .ccard.risk .avatar { background: var(--grad-danger); color:#fff; }
+  .ccard.risk .avatar:not(.has-photo) { background: var(--grad-danger); color:#fff; }
+  .avatar.ring-risk { box-shadow: 0 0 0 3px var(--danger-strong); }
+  .avatar.ring-clear { box-shadow: 0 0 0 3px var(--ok); }
+  .modal-head .avatar.ring-risk { box-shadow: 0 0 0 4px var(--danger-strong); }
+  .modal-head .avatar.ring-clear { box-shadow: 0 0 0 4px var(--ok); }
   .avatar img, .avatar.has-photo { object-fit: cover; }
   .avatar.has-photo { background: none; padding: 0; }
   .avatar.has-photo img { width:100%; height:100%; border-radius:50%; object-fit:cover; display:block; }
@@ -276,7 +280,7 @@
 
 <script>
 /* ---------- CONFIG ---------- */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzYasnQvmT-NleylR1fbbZHHIhjJIXbTyel9ueH-AIqKqQ1dfBtnvg1K5WlKB-jMxQI/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwThGmgdKtEJN_eDVZ9kJaT4qPsxFZlxLRMfZmto4AkKmDurEcgrFpOUAikXMpw-lHi/exec';
 const AUTH_USER = 'vegas';
 const AUTH_PASS = 'Vegas4747@!';
 
@@ -425,8 +429,10 @@ function formatDateOnly(raw) {
 }
 
 function avatarHtml(c, sizeClass) {
-  const cls = sizeClass ? `avatar ${sizeClass}` : 'avatar';
-  if (c.foto) return `<div class="${cls} has-photo"><img src="${c.foto}" alt="" /></div>`;
+  const ring = attentionCount(c) > 0 ? 'ring-risk' : 'ring-clear';
+  const cls = ['avatar', sizeClass, ring].filter(Boolean).join(' ');
+  const hasFoto = c.foto && /^(data:image\/|https?:\/\/)/.test(c.foto);
+  if (hasFoto) return `<div class="${cls} has-photo"><img src="${c.foto}" alt="" /></div>`;
   return `<div class="${cls}">${escapeHtml(initials(c.nome))}</div>`;
 }
 
@@ -642,7 +648,7 @@ function generatePDF(index) {
   doc.text('VEGAS VIGILÂNCIA & SEGURANÇA', textX, 14);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   doc.text('FICHA DE CANDIDATO — PROCESSO SELETIVO', textX, 21);
-  if (c.foto) {
+  if (c.foto && /^data:image\//.test(c.foto)) {
     try { doc.addImage(c.foto, 'JPEG', pageW - margin - 22, 4, 22, 22); } catch (e) {}
   }
 
